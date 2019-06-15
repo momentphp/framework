@@ -1,0 +1,40 @@
+{
+    "name": "momentphp/framework",
+    "description": "MomentPHP | The PHP mini-framework based on Slim and Laravel Components",
+    "homepage": "http://momentphp.kminek.pl",
+    "keywords": ["framework", "momentphp"],
+    "require": {
+        "slim/slim": "3.3.*",
+        "illuminate/support": "5.1.*",
+        "illuminate/events": "5.1.*",
+        "illuminate/database": "5.1.*",
+        "illuminate/cache": "5.1.*",
+        "illuminate/filesystem": "5.1.*",
+        "smarty/smarty": "3.1.*",
+        "twig/twig": "1.24.*",
+        "monolog/monolog": "1.18.*",
+        "filp/whoops": "2.1.*",
+        "symfony/var-dumper": "3.0.*",
+        "willdurand/negotiation": "2.0.*",
+        "soundasleep/html2text": "0.2.*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "4.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "momentphp\\": "src"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "momentphp\\tests\\": "tests"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable" : true
+}
+
