@@ -2,6 +2,21 @@
 
 namespace momentphp;
 
+use Illuminate\Container\Container;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Slim\Psr7\Environment;
+use Slim\Psr7\Factory\ResponseFactory;
+use Slim\Psr7\Factory\StreamFactory;
+use Slim\Psr7\Factory\UriFactory;
+use Slim\Psr7\Headers;
+use Slim\Psr7\Request;
+use Slim\Routing\RouteCollector;
+use Slim\Routing\RouteResolver;
+use Soundasleep\Html2Text;
+
 /**
  * App
  */
@@ -14,7 +29,7 @@ class App
     /**
      * Globally available app
      *
-     * @var \momentphp\App
+     * @var App
      */
     protected static $instance;
 
@@ -58,8 +73,9 @@ class App
      *
      * @param array $bundles
      * @param array $container
+     * @throws \Exception
      */
-    public function __construct($bundles = [], $container = [])
+    public function __construct(array $bundles = [], array $container = [])
     {
         $self = $this;
         static::setInstance($self);
@@ -68,7 +84,7 @@ class App
          * App
          */
         if (!isset($container['app'])) {
-            $container['app'] = function () use ($self) {
+            $container['app'] = static function () use ($self) {
                 return $self;
             };
         }
@@ -77,7 +93,7 @@ class App
          * Registry
          */
         if (!isset($container['registry'])) {
-            $container['registry'] = function ($c) {
+            $container['registry'] = static function ($c) {
                 return new Registry($c);
             };
         }
@@ -93,7 +109,7 @@ class App
          * Debug
          */
         if (!isset($container['debug'])) {
-            $container['debug'] = function ($c) {
+            $container['debug'] = static function ($c) {
                 return $c->get('config')->get('app.displayErrorDetails', false);
             };
         }
@@ -102,7 +118,7 @@ class App
          * Debug info
          */
         if (!isset($container['debugInfo'])) {
-            $container['debugInfo'] = function ($c) {
+            $container['debugInfo'] = static function ($c) {
                 return new DebugInfo($c);
             };
         }
@@ -111,7 +127,7 @@ class App
          * Console
          */
         if (!isset($container['console'])) {
-            $container['console'] = function () {
+            $container['console'] = static function () {
                 return (PHP_SAPI === 'cli');
             };
         }
@@ -120,7 +136,7 @@ class App
          * Storage path
          */
         if (!isset($container['pathStorage'])) {
-            $container['pathStorage'] = function ($c) {
+            $container['pathStorage'] = static function ($c) {
                 $path = $c->has('pathBase') ? [$c->get('pathBase'), 'storage'] : [sys_get_temp_dir(), 'momentphp'];
                 return path($path);
             };
@@ -130,7 +146,7 @@ class App
          * Config
          */
         if (!isset($container['config'])) {
-            $container['config'] = function ($c) {
+            $container['config'] = static function ($c) {
                 return new Config($c->get('app')->resourcePaths('config'), $c->get('env'));
             };
         }
@@ -139,7 +155,7 @@ class App
          * Database
          */
         if (!isset($container['database'])) {
-            $container['database'] = function ($c) {
+            $container['database'] = static function ($c) {
                 return new Database($c->get('config')->get('database', []), $c->get('debug'), $c->get('app')->eventsDispatcher());
             };
         }
@@ -148,7 +164,7 @@ class App
          * View
          */
         if (!isset($container['view'])) {
-            $container['view'] = function ($c) {
+            $container['view'] = static function ($c) {
                 $engine = $c->get('config')->get('app.viewEngine', 'twig');
                 return new View($c, $engine);
             };
@@ -158,7 +174,7 @@ class App
          * Template
          */
         if (!isset($container['template'])) {
-            $container['template'] = function ($c) {
+            $container['template'] = static function ($c) {
                 return new Template($c);
             };
         }
@@ -167,7 +183,7 @@ class App
          * Flash messages
          */
         if (!isset($container['flash'])) {
-            $container['flash'] = function ($c) {
+            $container['flash'] = static function ($c) {
                 return new FlashMessages($c->get('view'));
             };
         }
@@ -176,7 +192,7 @@ class App
          * Cache
          */
         if (!isset($container['cache'])) {
-            $container['cache'] = function ($c) {
+            $container['cache'] = static function ($c) {
                 return new Cache($c->get('config'), $c->get('app')->eventsDispatcher());
             };
         }
@@ -185,7 +201,7 @@ class App
          * Object cache
          */
         if (!isset($container['objectCache'])) {
-            $container['objectCache'] = function () {
+            $container['objectCache'] = static function () {
                 return new ObjectCache;
             };
         }
@@ -194,7 +210,7 @@ class App
          * Log
          */
         if (!isset($container['log'])) {
-            $container['log'] = function ($c) {
+            $container['log'] = static function ($c) {
                 return new Log($c->get('config')->get('loggers', []));
             };
         }
@@ -203,7 +219,7 @@ class App
          * Error
          */
         if (!isset($container['error'])) {
-            $container['error'] = function ($c) {
+            $container['error'] = static function ($c) {
                 return new Error($c);
             };
         }
@@ -212,17 +228,8 @@ class App
          * Exception handler
          */
         if (!isset($container['exceptionHandler'])) {
-            $container['exceptionHandler'] = function ($c) {
+            $container['exceptionHandler'] = static function ($c) {
                 return new ExceptionHandler($c);
-            };
-        }
-
-        /**
-         * Router (Slim)
-         */
-        if (!isset($container['router'])) {
-            $container['router'] = function () {
-                return new Router;
             };
         }
 
@@ -230,23 +237,43 @@ class App
          * Callable resolver (Slim)
          */
         if (!isset($container['callableResolver'])) {
-            $container['callableResolver'] = function ($c) {
+            $container['callableResolver'] = static function ($c) {
                 return new CallableResolver($c, new \Slim\CallableResolver($c));
+            };
+        }
+
+        /**
+         * Router (Slim)
+         */
+        if (!isset($container['router'])) {
+            $container['router'] = static function () use ($container) {
+                $callableResolver = $container['callableResolver'];
+                $responseFactory = new ResponseFactory();
+                $routeCollector = new RouteCollector($responseFactory, $callableResolver);
+                return new RouteResolver($routeCollector);
             };
         }
 
         /**
          * Init Slim app
          */
-        $this->slim = new \Slim\App($container);
+        if (is_array($container)) {
+            $container = new Container($container);
+        }
+
+        $responseFactory = new ResponseFactory();
+        $this->slim = new \Slim\App($responseFactory, $container);
         $this->container($this->slim->getContainer());
 
         /**
          * Settings (Slim)
          */
-        $this->service('settings', function ($c) {
-            return new Settings($c->get('config'), 'app');
-        });
+        $this->service(
+            'settings',
+            function ($c) {
+                return new Settings($c->get('config'), 'app');
+            }
+        );
 
         /**
          * Add bundles
@@ -289,11 +316,11 @@ class App
     /**
      * Default paths
      *
-     * @param  \Illuminate\Support\Collection $bundles
-     * @param  string $resource
+     * @param Collection $bundles
+     * @param string $resource
      * @return array
      */
-    protected function defaultPaths($bundles, $resource)
+    protected function defaultPaths(Collection $bundles, string $resource): array
     {
         $paths = [];
         foreach ($bundles as $bundle) {
@@ -321,7 +348,7 @@ class App
      * @param string $key
      * @param callable $callable
      */
-    public function resource($key, $callable)
+    public function resource(string $key, callable $callable): void
     {
         $this->resources[$key] = $callable;
     }
@@ -329,10 +356,11 @@ class App
     /**
      * Return resource paths
      *
-     * @param  string $key
+     * @param string $key
      * @return array
+     * @throws \Exception
      */
-    public function resourcePaths($key)
+    public function resourcePaths(string $key): array
     {
         if (!isset($this->resources[$key])) {
             throw new \Exception('Undefined resource: ' . $key);
@@ -344,9 +372,9 @@ class App
     /**
      * Get the globally available app
      *
-     * @return \momentphp\App
+     * @return App
      */
-    public static function getInstance()
+    public static function getInstance(): App
     {
         return static::$instance;
     }
@@ -354,9 +382,9 @@ class App
     /**
      * Set the globally available app
      *
-     * @param \momentphp\App $app
+     * @param App $app
      */
-    public static function setInstance(App $app)
+    public static function setInstance(App $app): void
     {
         static::$instance = $app;
     }
@@ -364,7 +392,7 @@ class App
     /**
      * Register autoloader
      *
-     * @return bool
+     * @return bool|void
      */
     public function registerAutoloader()
     {
@@ -378,7 +406,7 @@ class App
     /**
      * Unregister autoloader
      *
-     * @return bool
+     * @return bool|void
      */
     public function unregisterAutoloader()
     {
@@ -393,13 +421,13 @@ class App
      *
      * @param string $class
      */
-    protected function loadClass($class)
+    protected function loadClass(string $class): void
     {
         if ($this->bundles()->isEmpty()) {
             return;
         }
         $namespace = $this->bundleClass();
-        if (!\Illuminate\Support\Str::startsWith($class, $namespace)) {
+        if (!Str::startsWith($class, $namespace)) {
             return;
         }
         $relativeClass = ltrim(substr($class, strlen($namespace)), '\\');
@@ -418,10 +446,10 @@ class App
     /**
      * Return PHP namespace of last bundle inside collection
      *
-     * @param  null|string $class
+     * @param string|null $relativeClass
      * @return string
      */
-    public function bundleClass($relativeClass = null)
+    public function bundleClass(?string $relativeClass = null): string
     {
         $last = $this->bundles()->last();
         $namespace = $last::classNamespace();
@@ -437,7 +465,7 @@ class App
      * @param string $name
      * @param callable $callable
      */
-    public function service($name, $callable)
+    public function service(string $name, callable $callable): void
     {
         $container = $this->container();
         $container[$name] = $callable;
@@ -446,12 +474,12 @@ class App
     /**
      * Build the path for a named route including the base path (helper)
      *
-     * @param  string $name
-     * @param  array $data
-     * @param  array $queryParams
+     * @param string $name
+     * @param array $data
+     * @param array $queryParams
      * @return string
      */
-    public function url($name, $data = [], $queryParams = [])
+    public function url(string $name, array $data = [], array $queryParams = []): string
     {
         return $this->container()->get('router')->pathFor($name, $data, $queryParams);
     }
@@ -459,10 +487,10 @@ class App
     /**
      * Return fingerprint
      *
-     * @param  string $glue
+     * @param string $glue
      * @return string
      */
-    public function fingerprint($glue = '_')
+    public function fingerprint(string $glue = '_'): string
     {
         $aliases = [];
         foreach ($this->bundles() as $bundle) {
@@ -477,10 +505,10 @@ class App
     /**
      * Return bundle(s)
      *
-     * @param  null|string $alias
-     * @return \Illuminate\Support\Collection|\momentphp\Bundle
+     * @param string|null $alias
+     * @return Collection|Bundle
      */
-    public function bundles($alias = null)
+    public function bundles(?string $alias = null)
     {
         return ($alias === null) ? $this->collection() : $this->collection()->get($alias);
     }
@@ -488,7 +516,7 @@ class App
     /**
      * Register providers
      */
-    public function registerProviders()
+    public function registerProviders(): void
     {
         if (!$this->container()->has('config')) {
             return;
@@ -506,14 +534,14 @@ class App
     /**
      * Register middlewares
      */
-    public function registerMiddlewares()
+    public function registerMiddlewares(): void
     {
         if (!$this->container()->has('config')) {
             return;
         }
         $self = $this;
         $middlewares = $this->container()->get('config')->get('app.middlewares', []);
-        $load = function ($middlewares, $type) use ($self) {
+        $load = static function ($middlewares, $type) use ($self) {
             foreach ($middlewares as $key => $name) {
                 if (($name === false) && ($type === 'app')) {
                     continue;
@@ -523,9 +551,12 @@ class App
                         return $next($request, $response);
                     };
                 }
-                $self->service($key, function () use ($self, $name) {
-                    return $self->container()->get('registry')->load($name);
-                });
+                $self->service(
+                    $key,
+                    function () use ($self, $name) {
+                        return $self->container()->get('registry')->load($name);
+                    }
+                );
                 if ($type === 'app') {
                     $self->add($key);
                 }
@@ -541,8 +572,9 @@ class App
 
     /**
      * Register routes
+     * @throws \Exception
      */
-    public function registerRoutes()
+    public function registerRoutes(): void
     {
         $app = $this;
         foreach ($this->resourcePaths('routes') as $path) {
@@ -555,7 +587,7 @@ class App
     /**
      * Boot bundles
      */
-    public function bootBundles()
+    public function bootBundles(): void
     {
         foreach ($this->bundles() as $bundle) {
             if (method_exists($bundle, 'boot')) {
@@ -567,7 +599,7 @@ class App
     /**
      * Boot providers
      */
-    public function bootProviders()
+    public function bootProviders(): void
     {
         foreach ($this->providers as $provider) {
             if (method_exists($provider, 'boot')) {
@@ -578,8 +610,9 @@ class App
 
     /**
      * Boot app
+     * @throws \Exception
      */
-    public function boot()
+    public function boot(): void
     {
         if ($this->booted) {
             return;
@@ -609,59 +642,62 @@ class App
     /**
      * Run app
      *
-     * @param  bool $silent
-     * @return \Psr\Http\Message\ResponseInterface
+     * @param ServerRequestInterface|null $request
+     * @return void
+     * @throws \Soundasleep\Html2TextException
      */
-    public function run($silent = false)
+    public function run(?ServerRequestInterface $request = null): void
     {
         if ($this->container->has('console') && $this->container->get('console')) {
             global $argv;
             $uri = (isset($argv[1])) ? '/' . $argv[1] : '/';
             $response = $this->visit($uri);
-            $body = (string) $response->getBody();
+            $body = (string)$response->getBody();
             if (!empty($body)) {
-                echo \Html2Text\Html2Text::convert($body);
+                echo Html2Text::convert($body);
             }
         } else {
             $this->boot();
-            return $this->slim->run($silent);
+            $this->slim->run($request);
         }
     }
 
     /**
      * Simulate app request
      *
-     * @param  string $uri
-     * @param  string $method
-     * @return \Psr\Http\Message\ResponseInterface
+     * @param string $uri
+     * @param string $method
+     * @return ResponseInterface
+     * @throws \Exception
      */
-    public function visit($uri, $method = 'GET')
+    public function visit(string $uri, string $method = 'GET'): ResponseInterface
     {
-        $env = \Slim\Http\Environment::mock([
-            'SCRIPT_NAME' => '/index.php',
-            'REQUEST_URI' => $uri,
-            'REQUEST_METHOD' => $method,
-        ]);
-        $uri = \Slim\Http\Uri::createFromEnvironment($env);
-        $headers = \Slim\Http\Headers::createFromEnvironment($env);
+        $env = Environment::mock(
+            [
+                'SCRIPT_NAME' => '/index.php',
+                'REQUEST_URI' => $uri,
+                'REQUEST_METHOD' => $method,
+            ]
+        );
+        $uri = (new UriFactory())->createUri($uri);
+        $headers = Headers::createFromGlobals();
         $cookies = [];
-        $serverParams = $env->all();
-        $body = new \Slim\Http\RequestBody;
+        $serverParams = $env;
+        $body = (new StreamFactory())->createStream();
 
-        $request = new \Slim\Http\Request($method, $uri, $headers, $cookies, $serverParams, $body);
-        $response = new \Slim\Http\Response;
+        $request = new Request($method, $uri, $headers, $cookies, $serverParams, $body);
 
         $this->boot();
-        return $this->slim->process($request, $response);
+        return $this->slim->handle($request);
     }
 
     /**
      * Container proxy method
      *
-     * @param  string $name
+     * @param string $name
      * @return mixed
      */
-    public function __get($name)
+    public function __get(string $name)
     {
         return $this->container()->get($name);
     }
@@ -669,10 +705,10 @@ class App
     /**
      * Container proxy method
      *
-     * @param  string $name
-     * @return mixed
+     * @param string $name
+     * @return bool
      */
-    public function __isset($name)
+    public function __isset(string $name)
     {
         return $this->container()->has($name);
     }
@@ -680,11 +716,11 @@ class App
     /**
      * Proxy calls to underlying Slim app
      *
-     * @param  string $method
-     * @param  array $args
+     * @param string $method
+     * @param array $args
      * @return mixed
      */
-    public function __call($method, $args = [])
+    public function __call(string $method, array $args = [])
     {
         return call_user_func_array([$this->slim, $method], $args);
     }

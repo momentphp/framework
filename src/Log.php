@@ -2,6 +2,8 @@
 
 namespace momentphp;
 
+use Monolog\Logger;
+
 /**
  * Log
  */
@@ -15,7 +17,7 @@ class Log
      *
      * @param array $options
      */
-    public function __construct($options = [])
+    public function __construct(array $options = [])
     {
         $this->options($options);
     }
@@ -23,13 +25,14 @@ class Log
     /**
      * Construct new logger
      *
-     * @param  string $name
-     * @param  array $options
-     * @return \Monolog\Logger
+     * @param string $name
+     * @param array $options
+     * @return Logger
+     * @throws \ReflectionException
      */
-    public function factory($name, $options = [])
+    public function factory(string $name, array $options = []): Logger
     {
-        $logger = new \Monolog\Logger($name);
+        $logger = new Logger($name);
         foreach ($options['handlers'] as $handler) {
             if (is_object($handler)) {
                 $logger->pushHandler($handler);
@@ -47,12 +50,13 @@ class Log
     /**
      * Get logger by name
      *
-     * @param  null|string $name
-     * @return \Monolog\Logger
+     * @param string|null $name
+     * @return Logger
+     * @throws \ReflectionException
      */
-    public function logger($name = null)
+    public function logger(string $name = null): Logger
     {
-        $name = ($name === null) ? $this->options('default') : $name;
+        $name = $name ?? $this->options('default');
         if (!$this->collection()->has($name)) {
             $options = $this->options('loggers.' . $name);
             if (!$options) {
@@ -67,11 +71,12 @@ class Log
     /**
      * Proxy calls to the default logger
      *
-     * @param  string $method
-     * @param  array $args
+     * @param string $method
+     * @param array $args
      * @return mixed
+     * @throws \ReflectionException
      */
-    public function __call($method, $args)
+    public function __call(string $method, array $args)
     {
         return call_user_func_array([$this->logger(), $method], $args);
     }

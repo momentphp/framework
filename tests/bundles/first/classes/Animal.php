@@ -4,7 +4,7 @@ namespace momentphp\tests\bundles\first\classes;
 
 class Animal
 {
-    public function makeNoise()
+    public function makeNoise(): string
     {
         return 'lion from first bundle';
     }

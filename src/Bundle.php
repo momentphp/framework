@@ -2,6 +2,9 @@
 
 namespace momentphp;
 
+use Illuminate\Support\Str;
+use Psr\Container\ContainerInterface;
+
 /**
  * Bundle
  */
@@ -14,10 +17,10 @@ abstract class Bundle
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
      * @param array $options
      */
-    public function __construct(\Interop\Container\ContainerInterface $container, $options = [])
+    public function __construct(ContainerInterface $container, array $options = [])
     {
         $this->container($container);
         $this->options($options);
@@ -28,7 +31,7 @@ abstract class Bundle
      *
      * @return string
      */
-    public function alias()
+    public function alias(): string
     {
         if ($this->options('alias')) {
             return $this->options('alias');
@@ -39,34 +42,34 @@ abstract class Bundle
     /**
      * Return `true` if passed resource should be skipped from loading
      *
-     * @param  string $resource
+     * @param string $resource
      * @return bool
      */
-    public function skipResource($resource)
+    public function skipResource(string $resource): bool
     {
         $skip = $this->options('skipResource');
         if (!$skip) {
             return false;
         }
-        $skip = (array) $skip;
-        return in_array($resource, $skip);
+        $skip = (array)$skip;
+        return in_array($resource, $skip, true);
     }
 
     /**
      * Return `true` if passed class should be skipped from loading
      *
-     * @param  string $class
+     * @param string $class
      * @return bool
      */
-    public function skipClass($class)
+    public function skipClass(string $class): bool
     {
         $skip = $this->options('skipClass');
         if (!$skip) {
             return false;
         }
-        $skip = (array) $skip;
+        $skip = (array)$skip;
         foreach ($skip as $cl) {
-            if (\Illuminate\Support\Str::startsWith($class, $cl)) {
+            if (Str::startsWith($class, $cl)) {
                 return true;
             }
         }
@@ -78,7 +81,7 @@ abstract class Bundle
      *
      * @return bool
      */
-    public function skipFingerprint()
+    public function skipFingerprint(): bool
     {
         $skip = $this->options('skipFingerprint');
         if ($skip && ($skip === true)) {

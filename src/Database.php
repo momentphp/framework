@@ -2,6 +2,10 @@
 
 namespace momentphp;
 
+use Illuminate\Database\Capsule\Manager;
+use Illuminate\Database\ConnectionInterface;
+use Illuminate\Events\Dispatcher;
+
 /**
  * Database
  */
@@ -12,7 +16,7 @@ class Database
     /**
      * Capsule
      *
-     * @var \Illuminate\Database\Capsule\Manager
+     * @var Manager
      */
     protected $capsule;
 
@@ -26,7 +30,7 @@ class Database
     /**
      * Dispatcher
      *
-     * @var \Illuminate\Events\Dispatcher
+     * @var Dispatcher
      */
     protected $eventsDispatcher;
 
@@ -35,9 +39,9 @@ class Database
      *
      * @param array $options
      * @param boolean $debug
-     * @param null|\Illuminate\Events\Dispatcher $eventsDispatcher
+     * @param null|Dispatcher $eventsDispatcher
      */
-    public function __construct($options = [], $debug = false, \Illuminate\Events\Dispatcher $eventsDispatcher = null)
+    public function __construct(array $options = [], bool $debug = false, ?Dispatcher $eventsDispatcher = null)
     {
         $this->options($options);
         $this->debug = $debug;
@@ -47,12 +51,12 @@ class Database
     /**
      * Return capsule
      *
-     * @return \Illuminate\Database\Capsule\Manager
+     * @return Manager
      */
-    public function capsule()
+    public function capsule(): Manager
     {
         if ($this->capsule === null) {
-            $this->capsule = new \Illuminate\Database\Capsule\Manager;
+            $this->capsule = new Manager;
 
             if ($this->eventsDispatcher) {
                 $this->capsule->setEventDispatcher($this->eventsDispatcher);
@@ -74,10 +78,10 @@ class Database
     /**
      * Return connection
      *
-     * @param  null|string $name
-     * @return \Illuminate\Database\ConnectionInterface
+     * @param string|null $name
+     * @return ConnectionInterface
      */
-    public function connection($name = null)
+    public function connection(?string $name = null): ConnectionInterface
     {
         if ($name === null) {
             if (!$this->options('default')) {
@@ -97,7 +101,7 @@ class Database
      *
      * @return array
      */
-    public function queryLog()
+    public function queryLog(): array
     {
         $queryLog = [];
         if ($this->options('connections')) {
@@ -117,14 +121,13 @@ class Database
     /**
      * Return connection status
      *
-     * @param  null|string $name
-     * @return false|\Illuminate\Database\ConnectionInterface
+     * @param string|null $name
+     * @return false|ConnectionInterface
      */
-    public function connectionStatus($name = null)
+    public function connectionStatus(string $name = null)
     {
         try {
-            $connection = $this->connection($name);
-            return $connection;
+            return $this->connection($name);
         } catch (\Exception $e) {
             return false;
         }

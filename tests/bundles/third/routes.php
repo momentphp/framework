@@ -1,5 +1,8 @@
 <?php
 
-$app->get('/animal', function () {
-    return 'monkey from third bundle';
-});
+$app->get(
+    '/animal',
+    function () {
+        return 'monkey from third bundle';
+    }
+);

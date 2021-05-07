@@ -2,45 +2,53 @@
 
 namespace momentphp\middlewares;
 
+use momentphp\Middleware;
+use Negotiation\Accept;
+use Negotiation\Negotiator;
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+
 /**
  * BundleAssetMiddleware
  */
-class NegotiationMiddleware extends \momentphp\Middleware
+class NegotiationMiddleware extends Middleware
 {
     /**
      * Negotiator
      *
-     * @var \Negotiation\Negotiator
+     * @var Negotiator
      */
     protected $negotiator;
 
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
      * @param array $options
      */
-    public function __construct(\Interop\Container\ContainerInterface $container, $options = [])
+    public function __construct(ContainerInterface $container, array $options = [])
     {
         parent::__construct($container, $options);
-        $this->negotiator = new \Negotiation\Negotiator;
+        $this->negotiator = new Negotiator;
     }
 
     /**
      * Invoke middleware
      *
-     * @param \Psr\Http\Message\RequestInterface $request
-     * @param \Psr\Http\Message\ResponseInterface $response
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
      * @param callable $next
-     * @return \Psr\Http\Message\ResponseInterface
+     * @return ResponseInterface
+     * @throws \Negotiation\Exception\Exception
      */
-    public function __invoke($request, $response, $next)
+    public function __invoke(RequestInterface $request, ResponseInterface $response, callable $next): ResponseInterface
     {
         $acceptHeader = $request->getHeaderLine('accept');
         if (!empty($acceptHeader)) {
             $mediaType = $this->negotiator->getBest($acceptHeader, $this->priorities());
         } else {
-            $mediaType = new \Negotiation\Accept($this->priorities()[0]);
+            $mediaType = new Accept($this->priorities()[0]);
         }
         if (!$mediaType) {
             return $next($request, $response);
@@ -55,7 +63,7 @@ class NegotiationMiddleware extends \momentphp\Middleware
      *
      * @return array
      */
-    protected function priorities()
+    protected function priorities(): array
     {
         return $this->options('mediaType');
     }

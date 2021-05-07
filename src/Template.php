@@ -2,6 +2,11 @@
 
 namespace momentphp;
 
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Slim\Psr7\Response;
+
 /**
  * Template
  */
@@ -12,21 +17,21 @@ class Template
     /**
      * Helpers registry
      *
-     * @var \momentphp\Registry
+     * @var Registry
      */
     public $registry;
 
     /**
      * Request
      *
-     * @var \Psr\Http\Message\RequestInterface
+     * @var RequestInterface
      */
     public $request;
 
     /**
      * Response
      *
-     * @var \Psr\Http\Message\ResponseInterface
+     * @var ResponseInterface
      */
     public $response;
 
@@ -40,9 +45,9 @@ class Template
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
      */
-    public function __construct(\Interop\Container\ContainerInterface $container)
+    public function __construct(ContainerInterface $container)
     {
         $this->container($container);
         $this->registry = $this->prepareRegistry();
@@ -51,16 +56,18 @@ class Template
     /**
      * Prepare helpers registry
      *
-     * @return \momentphp\Registry
+     * @return Registry
      */
-    protected function prepareRegistry()
+    protected function prepareRegistry(): Registry
     {
         $registry = new Registry($this->container());
         $container = $this->container();
         $template = $this;
-        $registry->factoryCallback(function ($class, $options) use ($container, $template) {
-            return new $class($container, $template, $options);
-        });
+        $registry->factoryCallback(
+            function ($class, $options) use ($container, $template) {
+                return new $class($container, $template, $options);
+            }
+        );
         return $registry;
     }
 
@@ -69,20 +76,20 @@ class Template
      *
      * @return string
      */
-    public function cell()
+    public function cell(): string
     {
         $args = func_get_args();
         $name = array_shift($args);
         $parts = explode(':', $name);
         if (count($parts) === 2) {
-            list($name, $action) = [$parts[0], $parts[1]];
+            [$name, $action] = [$parts[0], $parts[1]];
         } else {
-            list($name, $action) = [$parts[0], 'display'];
+            [$name, $action] = [$parts[0], 'display'];
         }
         $cell = $this->container()->get('registry')->load('cells\\' . $name . 'Controller');
-        $response = $cell->{$action}($this->request->withAttribute('action', $action), new \Slim\Http\Response, $args);
-        if ($response instanceof \Psr\Http\Message\ResponseInterface) {
-            $response = (string) $response->getBody();
+        $response = $cell->{$action}($this->request->withAttribute('action', $action), new Response, $args);
+        if ($response instanceof ResponseInterface) {
+            $response = (string)$response->getBody();
         }
         return $response;
     }
@@ -90,8 +97,8 @@ class Template
     /**
      * Allow `d()` inside templates
      *
-     * @param  mixed $var
-     * @return string
+     * @param mixed $var
+     * @return false|string
      */
     public function d($var)
     {
@@ -101,10 +108,10 @@ class Template
     /**
      * Return helper
      *
-     * @param  string $name
-     * @return \momentphp\Helper|\momentphp\Registry
+     * @param string $name
+     * @return Helper|Registry
      */
-    public function __get($name)
+    public function __get(string $name)
     {
         return $this->registry->helpers->{$name};
     }
@@ -113,10 +120,10 @@ class Template
      * Dynamic properties inside Twig templates
      *
      * @link   http://twig.sensiolabs.org/doc/recipes.html#using-dynamic-object-properties
-     * @param  string $name
+     * @param string $name
      * @return boolean
      */
-    public function __isset($name)
+    public function __isset(string $name)
     {
         return true;
     }

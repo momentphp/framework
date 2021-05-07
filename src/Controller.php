@@ -2,6 +2,11 @@
 
 namespace momentphp;
 
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Slim\Exception\HttpNotFoundException;
+
 /**
  * Controller
  */
@@ -14,31 +19,31 @@ abstract class Controller
     /**
      * Request
      *
-     * @var \Psr\Http\Message\RequestInterface
+     * @var RequestInterface
      */
     protected $request;
 
     /**
      * Response
      *
-     * @var \Psr\Http\Message\ResponseInterface
+     * @var ResponseInterface
      */
     protected $response;
 
     /**
      * View
      *
-     * @var \momentphp\View
+     * @var View
      */
     protected $view;
 
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
      * @param array $options
      */
-    public function __construct(\Interop\Container\ContainerInterface $container, $options = [])
+    public function __construct(ContainerInterface $container, array $options = [])
     {
         $this->container($container);
         $this->options($options);
@@ -54,7 +59,7 @@ abstract class Controller
      *
      * @return array
      */
-    public function implementedEvents()
+    public function implementedEvents(): array
     {
         return [
             "controller.{static::classPrefix()}.initialize" => 'initialize',
@@ -66,7 +71,7 @@ abstract class Controller
     /**
      * Callback called after controller creation
      */
-    public function initialize()
+    public function initialize(): void
     {
     }
 
@@ -75,7 +80,7 @@ abstract class Controller
      *
      * @param string $action
      */
-    public function beforeAction($action)
+    public function beforeAction(string $action): void
     {
     }
 
@@ -84,24 +89,24 @@ abstract class Controller
      *
      * @param string $action
      */
-    public function afterAction($action)
+    public function afterAction(string $action): void
     {
     }
 
     /**
      * Return response object with rendered template
      *
-     * @param  null|string $template
-     * @param  null|string $bundle
-     * @return \Psr\Http\Message\ResponseInterface
+     * @param string|null $template
+     * @param string|null $bundle
+     * @return ResponseInterface
      */
-    public function render($template = null, $bundle = null)
+    public function render(?string $template = null, ?string $bundle = null): ResponseInterface
     {
         $templateFolder = str_replace('.', '/', static::classConfigKey());
         $this->view
-        ->request($this->request)
-        ->response($this->response)
-        ->templateFolder($templateFolder);
+            ->request($this->request)
+            ->response($this->response)
+            ->templateFolder($templateFolder);
         if ($this->view->template() === null) {
             $this->view->template($this->request->getAttribute('action'));
         }
@@ -111,17 +116,19 @@ abstract class Controller
         if ($bundle) {
             $this->view->bundle($bundle);
         }
-        return $this->response->write($this->view->render());
+        $this->response->getBody()->write($this->view->render());
+
+        return $this->response;
     }
 
     /**
      * Save a variable or an associative array of variables for use inside a template
      *
-     * @param  mixed $name
-     * @param  mixed $value
-     * @return \momentphp\View
+     * @param mixed $name
+     * @param mixed $value
+     * @return View
      */
-    public function set($name, $value = null)
+    public function set($name, $value = null): View
     {
         return $this->view->set($name, $value);
     }
@@ -129,10 +136,11 @@ abstract class Controller
     /**
      * Not found helper
      *
-     * @param null|\Psr\Http\Message\RequestInterface $request
-     * @param null|\Psr\Http\Message\ResponseInterface $response
+     * @param RequestInterface|null $request
+     * @param ResponseInterface|null $response
+     * @throws HttpNotFoundException
      */
-    public function abort($request = null, $response = null)
+    public function abort(?RequestInterface $request = null, ?ResponseInterface $response = null): void
     {
         if ($request === null) {
             $request = $this->request;
@@ -140,18 +148,18 @@ abstract class Controller
         if ($response === null) {
             $response = $this->response;
         }
-        throw new \Slim\Exception\NotFoundException($request, $response);
+        throw new HttpNotFoundException($request);
     }
 
     /**
      * Invoke action
      *
-     * @param  string $action
-     * @param  array $args
-     * @param  array $options
-     * @return string|\Psr\Http\Message\ResponseInterface
+     * @param string $action
+     * @param array $args
+     * @return string|ResponseInterface
+     * @throws \Exception
      */
-    public function __call($action, $args = [])
+    public function __call(string $action, array $args = [])
     {
         if (!method_exists($this, $action)) {
             throw new \Exception('Missing controller action: ' . static::class . ':' . $action);
@@ -159,7 +167,7 @@ abstract class Controller
 
         $request = $args[0];
         $response = $args[1];
-        $params = isset($args[2]) ? $args[2] : [];
+        $params = $args[2] ?? [];
 
         $attributes = $request->getAttributes();
         $attributes['controller'] = static::classBasename();
@@ -186,8 +194,8 @@ abstract class Controller
     /**
      * Return model
      *
-     * @param  string $name
-     * @return \momentphp\Model|\momentphp\Registry
+     * @param string $name
+     * @return Model|Registry
      */
     public function __get($name)
     {

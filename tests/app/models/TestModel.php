@@ -6,12 +6,12 @@ class TestModel extends \momentphp\Model
 {
     protected $str = ['hello'];
 
-    public function initialize()
+    public function initialize(): void
     {
         $this->str[] = 'world';
     }
 
-    public function greet()
+    public function greet(): string
     {
         return implode(' ', $this->str);
     }

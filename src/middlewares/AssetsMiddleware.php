@@ -2,22 +2,27 @@
 
 namespace momentphp\middlewares;
 
+use momentphp\Middleware;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Slim\Psr7\Factory\StreamFactory;
+
 /**
  * AssetMiddleware
  */
-class AssetsMiddleware extends \momentphp\Middleware
+class AssetsMiddleware extends Middleware
 {
     /**
      * Invoke middleware
      *
-     * @param \Psr\Http\Message\RequestInterface $request
-     * @param \Psr\Http\Message\ResponseInterface $response
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
      * @param callable $next
-     * @return \Psr\Http\Message\ResponseInterface
+     * @return ResponseInterface
      */
-    public function __invoke($request, $response, $next)
+    public function __invoke(RequestInterface $request, ResponseInterface $response, callable $next): ResponseInterface
     {
-        if (!$request->isGet()) {
+        if ($request->getMethod() === 'GET') {
             return $next($request, $response);
         }
         $path = $request->getUri()->getPath();
@@ -38,17 +43,17 @@ class AssetsMiddleware extends \momentphp\Middleware
             return $next($request, $response);
         }
         return $response->withStatus(200)->withHeader('Content-Type', $this->mimeType($file))->withBody(
-            new \Slim\Http\Body(fopen($file, 'r'))
+            (new StreamFactory())->createStreamFromFile($file)
         );
     }
 
     /**
      * Return file mime type
      *
-     * @param  string $filename
+     * @param string $file
      * @return string
      */
-    protected function mimeType($file)
+    protected function mimeType(string $file): string
     {
         $mimeTypes = [
             'txt' => 'text/plain',
@@ -108,13 +113,15 @@ class AssetsMiddleware extends \momentphp\Middleware
         $ext = strtolower(array_pop($fileArr));
         if (array_key_exists($ext, $mimeTypes)) {
             return $mimeTypes[$ext];
-        } elseif (function_exists('finfo_open')) {
+        }
+
+        if (function_exists('finfo_open')) {
             $finfo = finfo_open(FILEINFO_MIME);
             $mimeType = finfo_file($finfo, $file);
             finfo_close($finfo);
             return $mimeType;
-        } else {
-            return 'application/octet-stream';
         }
+
+        return 'application/octet-stream';
     }
 }
