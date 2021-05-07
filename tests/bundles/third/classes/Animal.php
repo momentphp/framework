@@ -4,7 +4,7 @@ namespace momentphp\tests\bundles\third\classes;
 
 class Animal
 {
-    public function makeNoise()
+    public function makeNoise(): string
     {
         return 'monkey from third bundle';
     }

@@ -2,6 +2,9 @@
 
 namespace momentphp\traits;
 
+use momentphp\App;
+use Psr\Container\ContainerInterface;
+
 /**
  * ContainerTrait
  */
@@ -10,24 +13,24 @@ trait ContainerTrait
     /**
      * App
      *
-     * @var \momentphp\App
+     * @var App
      */
     public $app;
 
     /**
      * Container
      *
-     * @var \Interop\Container\ContainerInterface
+     * @var ContainerInterface
      */
     protected $container;
 
     /**
      * Container getter/setter
      *
-     * @param  ContainerInterface|null $container
+     * @param ContainerInterface|null $container
      * @return ContainerInterface|object
      */
-    public function container(\Interop\Container\ContainerInterface $container = null)
+    public function container(ContainerInterface $container = null)
     {
         if ($container !== null) {
             $this->container = $container;

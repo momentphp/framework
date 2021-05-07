@@ -2,6 +2,9 @@
 
 namespace momentphp;
 
+use Illuminate\Support\Str;
+use Psr\Container\ContainerInterface;
+
 /**
  * Registry
  */
@@ -27,51 +30,53 @@ class Registry
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
      */
-    public function __construct(\Interop\Container\ContainerInterface $container)
+    public function __construct(ContainerInterface $container)
     {
         $this->container($container);
-        $this->factoryCallback(function ($class, $options) use ($container) {
-            $instance = new $class($container, $options);
+        $this->factoryCallback(
+            function ($class, $options) use ($container) {
+                $instance = new $class($container, $options);
 
-            if ($container->has('cache') && $container->has('objectCache') && isset($options['cache']) && is_array($options['cache'])) {
-                $cacheOptions = $options['cache'];
-                $store = $container->get('cache');
-                if (isset($cacheOptions['store'])) {
-                    $store = $store->store($cacheOptions['store']);
-                    unset($cacheOptions['store']);
-                }
-                $nonCacheMethods = ['options'];
-                if (isset($cacheOptions['nonCacheMethods'])) {
-                    foreach ($cacheOptions['nonCacheMethods'] as $method) {
-                        if (!in_array($method, $nonCacheMethods)) {
-                            $nonCacheMethods[] = $method;
+                if ($container->has('cache') && $container->has('objectCache') && isset($options['cache']) && is_array($options['cache'])) {
+                    $cacheOptions = $options['cache'];
+                    $store = $container->get('cache');
+                    if (isset($cacheOptions['store'])) {
+                        $store = $store->store($cacheOptions['store']);
+                        unset($cacheOptions['store']);
+                    }
+                    $nonCacheMethods = ['options'];
+                    if (isset($cacheOptions['nonCacheMethods'])) {
+                        foreach ($cacheOptions['nonCacheMethods'] as $method) {
+                            if (!in_array($method, $nonCacheMethods, true)) {
+                                $nonCacheMethods[] = $method;
+                            }
                         }
                     }
+                    $cacheOptions['nonCacheMethods'] = $nonCacheMethods;
+                    $objectCache = clone $container->get('objectCache');
+                    $objectCache($instance, $store, $cacheOptions);
+                    return $objectCache;
                 }
-                $cacheOptions['nonCacheMethods'] = $nonCacheMethods;
-                $objectCache = clone $container->get('objectCache');
-                $objectCache($instance, $store, $cacheOptions);
-                return $objectCache;
-            }
 
-            return $instance;
-        });
+                return $instance;
+            }
+        );
     }
 
     /**
      * Loads/constructs an object instance
      *
-     * @param  string $name
+     * @param string $name
      * @return object
+     * @throws \Exception
      */
-    public function load($name)
+    public function load(string $name): object
     {
         $key = $this->prefix($name);
         if ($this->collection()->has($key)) {
-            $instance = $this->collection()->get($key);
-            return $instance;
+            return $this->collection()->get($key);
         }
         if ($this->container()->has($key)) {
             $instance = $this->container()->get($key);
@@ -85,11 +90,12 @@ class Registry
     /**
      * Return new instance
      *
-     * @param  string $name
-     * @param  array $options
+     * @param string $name
+     * @param array $options
      * @return object
+     * @throws \Exception
      */
-    public function factory($name, $options = [])
+    public function factory(string $name, array $options = []): object
     {
         $key = $this->prefix($name);
         $class = $this->container()->get('app')->bundleClass($key);
@@ -97,17 +103,16 @@ class Registry
             throw new \Exception('Class not found: ' . $class);
         }
         $factoryCallback = $this->factoryCallback();
-        $instance = $factoryCallback($class, $options);
-        return $instance;
+        return $factoryCallback($class, $options);
     }
 
     /**
      * Factory callback getter/setter
      *
-     * @param  null|callable $callback
+     * @param callable|null $callback
      * @return $this|\Closure
      */
-    public function factoryCallback($callback = null)
+    public function factoryCallback(callable $callback = null)
     {
         if ($callback !== null) {
             $this->factoryCallback = $callback;
@@ -119,10 +124,11 @@ class Registry
     /**
      * Return options from configuration
      *
-     * @param  string $name
+     * @param string $name
      * @return array
+     * @throws \Exception
      */
-    public function options($name)
+    public function options(string $name): array
     {
         $options = [];
         if ($this->container()->has('config')) {
@@ -141,10 +147,10 @@ class Registry
      *
      * 'PostModel' -> 'models\PostModel'
      *
-     * @param  string $name
+     * @param string $name
      * @return string
      */
-    protected function prefix($name)
+    protected function prefix(string $name): string
     {
         $prefix = class_suffix($name, true);
         return $prefix . '\\' . $name;
@@ -153,14 +159,14 @@ class Registry
     /**
      * Loads/constructs an object instance
      *
-     * @param  string $name
+     * @param string $name
      * @return object|$this
      */
-    public function __get($name)
+    public function __get(string $name)
     {
         $this->path[] = $name;
         if (count($this->path) > 1) {
-            $suffix = ucfirst(str_singular($this->path[0]));
+            $suffix = ucfirst(Str::singular($this->path[0]));
             $name = implode('\\', array_slice($this->path, 1)) . $suffix;
             try {
                 $instance = $this->load($name);
@@ -176,10 +182,10 @@ class Registry
      * Dynamic properties inside Twig templates
      *
      * @link   http://twig.sensiolabs.org/doc/recipes.html#using-dynamic-object-properties
-     * @param  string $name
+     * @param string $name
      * @return boolean
      */
-    public function __isset($name)
+    public function __isset(string $name)
     {
         return true;
     }

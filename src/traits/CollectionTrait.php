@@ -2,6 +2,8 @@
 
 namespace momentphp\traits;
 
+use Illuminate\Support\Collection;
+
 /**
  * CollectionTrait
  */
@@ -10,15 +12,15 @@ trait CollectionTrait
     /**
      * Collection
      *
-     * @var \Illuminate\Support\Collection
+     * @var Collection
      */
     protected $collection;
 
     /**
      * Collection getter/setter
      *
-     * @param  \Illuminate\Support\Collection|null $collection
-     * @return \Illuminate\Support\Collection|object
+     * @param Collection|null $collection
+     * @return Collection|object
      */
     public function collection(Collection $collection = null)
     {
@@ -27,7 +29,7 @@ trait CollectionTrait
             return $this;
         }
         if ($this->collection === null) {
-            $this->collection = new \Illuminate\Support\Collection;
+            $this->collection = new Collection;
         }
         return $this->collection;
     }

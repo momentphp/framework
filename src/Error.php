@@ -2,6 +2,9 @@
 
 namespace momentphp;
 
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\ResponseInterface;
+
 /**
  * Error
  */
@@ -12,9 +15,9 @@ class Error
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
      */
-    public function __construct(\Interop\Container\ContainerInterface $container)
+    public function __construct(ContainerInterface $container)
     {
         $this->container($container);
     }
@@ -22,7 +25,7 @@ class Error
     /**
      * Register framework error handlers
      */
-    public function register()
+    public function register(): void
     {
         $container = $this->container();
 
@@ -54,8 +57,9 @@ class Error
      * @param string $file
      * @param int $line
      * @param array $context
+     * @throws \ErrorException
      */
-    public function handleError($level, $message, $file = '', $line = 0, $context = [])
+    public function handleError(int $level, string $message, string $file = '', int $line = 0, array $context = []): void
     {
         if (error_reporting() & $level) {
             throw new \ErrorException($message, 0, $level, $file, $line);
@@ -65,10 +69,10 @@ class Error
     /**
      * Handle an uncaught exception from the app
      *
-     * @param  \Throwable $e
-     * @return void|\Psr\Http\Message\ResponseInterface
+     * @param \Throwable $e
+     * @return void|ResponseInterface
      */
-    public function handleException($e)
+    public function handleException(\Throwable $e)
     {
         $handler = $this->container->get('exceptionHandler');
         $handler->report($e);
@@ -76,16 +80,16 @@ class Error
         if ($this->container()->has('console') && $this->container()->get('console')) {
             echo $handler->renderForConsole($e);
             exit(1);
-        } else {
-            $response = $handler->renderHttpResponse($e);
-            return $this->container()->get('app')->respond($response);
         }
+
+        $response = $handler->renderHttpResponse($e);
+        return $this->container()->get('app')->respond($response);
     }
 
     /**
      * Shutdown function
      */
-    public function handleShutdown()
+    public function handleShutdown(): void
     {
         $error = error_get_last();
         if (!is_array($error)) {
@@ -108,11 +112,11 @@ class Error
     /**
      * Determine if the error type is fatal
      *
-     * @param  int $type
+     * @param int $type
      * @return bool
      */
-    protected function isFatal($type)
+    protected function isFatal(int $type): bool
     {
-        return in_array($type, [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE, E_USER_ERROR]);
+        return in_array($type, [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE, E_USER_ERROR], true);
     }
 }

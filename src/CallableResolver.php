@@ -2,27 +2,30 @@
 
 namespace momentphp;
 
+use Psr\Container\ContainerInterface;
+use Slim\Interfaces\CallableResolverInterface;
+
 /**
  * CallableResolver
  */
-class CallableResolver implements \Slim\Interfaces\CallableResolverInterface
+class CallableResolver implements CallableResolverInterface
 {
     use traits\ContainerTrait;
 
     /**
      * Base resolver
      *
-     * @var \Slim\Interfaces\CallableResolverInterface
+     * @var CallableResolverInterface
      */
     protected $baseResolver;
 
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
-     * @param array $options
+     * @param ContainerInterface $container
+     * @param CallableResolverInterface $baseResolver
      */
-    public function __construct(\Interop\Container\ContainerInterface $container, \Slim\Interfaces\CallableResolverInterface $baseResolver)
+    public function __construct(ContainerInterface $container, CallableResolverInterface $baseResolver)
     {
         $this->container($container);
         $this->baseResolver = $baseResolver;
@@ -31,20 +34,19 @@ class CallableResolver implements \Slim\Interfaces\CallableResolverInterface
     /**
      * Resolve `$toResolve` into a callable
      *
-     * @param  mixed $toResolve
+     * @param string|callable $toResolve
      * @return callable
      */
-    public function resolve($toResolve)
+    public function resolve($toResolve): callable
     {
         try {
-            $resolved = $this->baseResolver->resolve($toResolve);
-            return $resolved;
+            return $this->baseResolver->resolve($toResolve);
         } catch (\Exception $e) {
         }
 
         $toResolveArr = explode(':', $toResolve);
         $class = $toResolveArr[0];
-        $method = isset($toResolveArr[1]) ? $toResolveArr[1] : null;
+        $method = $toResolveArr[1] ?? null;
 
         $instance = $this->container()->get('registry')->load($class);
         return ($method) ? [$instance, $method] : $instance;

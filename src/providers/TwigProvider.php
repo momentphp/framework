@@ -2,13 +2,18 @@
 
 namespace momentphp\providers;
 
+use momentphp\Provider;
+use momentphp\TwigViewEngine;
+use Twig\Error\LoaderError;
+
 /**
  * TwigProvider
  */
-class TwigProvider extends \momentphp\Provider
+class TwigProvider extends Provider
 {
     /**
      * Register service
+     * @throws LoaderError
      */
     public function __invoke()
     {
@@ -16,8 +21,11 @@ class TwigProvider extends \momentphp\Provider
         if ($this->container()->has('debug')) {
             $options['debug'] = $this->container()->get('debug');
         }
-        $this->container()->get('app')->service('twig', function () use ($options) {
-            return new \momentphp\TwigViewEngine($options);
-        });
+        $this->container()->get('app')->service(
+            'twig',
+            function () use ($options) {
+                return new TwigViewEngine($options);
+            }
+        );
     }
 }

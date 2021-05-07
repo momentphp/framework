@@ -1,5 +1,8 @@
 <?php
 
-$app->get('/', function () {
-    return 'MomentPHP';
-});
+$app->get(
+    '/',
+    function () {
+        return 'MomentPHP';
+    }
+);

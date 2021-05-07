@@ -2,6 +2,10 @@
 
 namespace momentphp;
 
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+
 /**
  * Middleware
  */
@@ -14,10 +18,10 @@ abstract class Middleware
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
      * @param array $options
      */
-    public function __construct(\Interop\Container\ContainerInterface $container, $options = [])
+    public function __construct(ContainerInterface $container, array $options = [])
     {
         $this->container($container);
         $this->options($options);
@@ -26,10 +30,10 @@ abstract class Middleware
     /**
      * Invoke middleware
      *
-     * @param  \Psr\Http\Message\RequestInterface $request
-     * @param  \Psr\Http\Message\ResponseInterface $response
-     * @param  callable $next
-     * @return \Psr\Http\Message\ResponseInterface
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     * @param callable $next
+     * @return ResponseInterface
      */
-    abstract public function __invoke($request, $response, $next);
+    abstract public function __invoke(RequestInterface $request, ResponseInterface $response, callable $next): ResponseInterface;
 }

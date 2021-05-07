@@ -2,15 +2,22 @@
 
 namespace momentphp;
 
+use momentphp\interfaces\ViewEngineInterface;
+use Twig\Environment;
+use Twig\Error\LoaderError;
+use Twig\Error\RuntimeError;
+use Twig\Error\SyntaxError;
+use Twig\Loader\FilesystemLoader;
+
 /**
  * TwigViewEngine
  */
-class TwigViewEngine implements \momentphp\interfaces\ViewEngineInterface
+class TwigViewEngine implements ViewEngineInterface
 {
     /**
      * Twig
      *
-     * @var \Twig_Environment
+     * @var Environment
      */
     public $twig;
 
@@ -18,14 +25,15 @@ class TwigViewEngine implements \momentphp\interfaces\ViewEngineInterface
      * Constructor
      *
      * @param array $options
+     * @throws LoaderError
      */
-    public function __construct($options = [])
+    public function __construct(array $options = [])
     {
         if (!file_exists($options['compile'])) {
             mkdir($options['compile'], 0777, true);
         }
 
-        $loader = new \Twig_Loader_Filesystem;
+        $loader = new FilesystemLoader;
         // register paths inside main namespace
         foreach ($options['templates'] as $namespace => $path) {
             if (file_exists($path)) {
@@ -39,8 +47,8 @@ class TwigViewEngine implements \momentphp\interfaces\ViewEngineInterface
             }
         }
 
-        $debug = isset($options['debug']) ? $options['debug'] : false;
-        $options['autoescape'] = isset($options['autoescape']) ? $options['autoescape'] : false;
+        $debug = $options['debug'] ?? false;
+        $options['autoescape'] = $options['autoescape'] ?? false;
 
         $environmentOptions = [
             'cache' => $options['compile'],
@@ -48,18 +56,21 @@ class TwigViewEngine implements \momentphp\interfaces\ViewEngineInterface
             'debug' => $debug,
         ];
 
-        $this->twig = new \Twig_Environment($loader, $environmentOptions);
+        $this->twig = new Environment($loader, $environmentOptions);
     }
 
     /**
      * Render template content
      *
-     * @param  string $template
-     * @param  array $data
-     * @param  null|string $bundle
+     * @param string $template
+     * @param array $data
+     * @param string|null $bundle
      * @return string
+     * @throws LoaderError
+     * @throws RuntimeError
+     * @throws SyntaxError
      */
-    public function render($template, $data = [], $bundle = null)
+    public function render(string $template, array $data = [], string $bundle = null): string
     {
         return $this->twig->render($this->template($template, $bundle), $data);
     }
@@ -67,11 +78,11 @@ class TwigViewEngine implements \momentphp\interfaces\ViewEngineInterface
     /**
      * Check if given template exists
      *
-     * @param  string $template
-     * @param  null|string $bundle
+     * @param string $template
+     * @param string|null $bundle
      * @return boolean
      */
-    public function exists($template, $bundle = null)
+    public function exists(string $template, string $bundle = null): bool
     {
         return $this->twig->getLoader()->exists($this->template($template, $bundle));
     }
@@ -79,11 +90,11 @@ class TwigViewEngine implements \momentphp\interfaces\ViewEngineInterface
     /**
      * Return template path
      *
-     * @param  string $template
-     * @param  null|string $bundle
+     * @param string $template
+     * @param string|null $bundle
      * @return string
      */
-    protected function template($template, $bundle = null)
+    protected function template(string $template, string $bundle = null): string
     {
         if ($bundle !== null) {
             $template = '@' . $bundle . '/' . $template;

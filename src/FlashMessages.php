@@ -2,6 +2,8 @@
 
 namespace momentphp;
 
+use ArrayAccess;
+
 /**
  * FlashMessages
  */
@@ -12,7 +14,7 @@ class FlashMessages
     /**
      * View
      *
-     * @var \momentphp\View
+     * @var View
      */
     protected $view;
 
@@ -46,13 +48,13 @@ class FlashMessages
     /**
      * Constructor
      *
-     * @param \momentphp\View $view
+     * @param View $view
      * @param null|array|ArrayAccess &$storage
      */
     public function __construct(View $view, &$storage = null)
     {
         $this->view = $view;
-        if (is_array($storage) || $storage instanceof \ArrayAccess) {
+        if (is_array($storage) || $storage instanceof ArrayAccess) {
             $this->storage = &$storage;
         } elseif (is_null($storage)) {
             if (!isset($_SESSION)) {
@@ -73,7 +75,7 @@ class FlashMessages
      * @param string $message
      * @param array $options
      */
-    public function set($message, $options = [])
+    public function set(string $message, array $options = [])
     {
         $options += $this->options();
         $messages = [];
@@ -93,10 +95,10 @@ class FlashMessages
     /**
      * Render flash messages under given key
      *
-     * @param  string $key
-     * @return string
+     * @param string $key
+     * @return string|null
      */
-    public function render($key = 'flash')
+    public function render(string $key = 'flash'): ?string
     {
         if (!isset($this->storage[$this->storageKey][$key])) {
             return null;
@@ -117,7 +119,7 @@ class FlashMessages
      * @param string $method
      * @param array $args
      */
-    public function __call($method, $args = [])
+    public function __call(string $method, array $args = [])
     {
         $template = $method;
         if (count($args) < 1) {

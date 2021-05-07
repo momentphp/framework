@@ -2,6 +2,8 @@
 
 namespace momentphp;
 
+use Illuminate\Support\Arr;
+
 /**
  * Config
  */
@@ -48,7 +50,7 @@ class Config implements \ArrayAccess
      * @param array $configDirs
      * @param string $environment
      */
-    public function __construct($configDirs, $environment = 'production')
+    public function __construct(array $configDirs, string $environment = 'production')
     {
         $this->configDirs = $configDirs;
         $this->environment = $environment;
@@ -57,15 +59,15 @@ class Config implements \ArrayAccess
     /**
      * Get the specified configuration value
      *
-     * @param  string $key
-     * @param  mixed $default
+     * @param string $key
+     * @param mixed $default
      * @return mixed
      */
-    public function get($key, $default = null)
+    public function get(string $key, $default = null)
     {
-        list($group, $item) = $this->parseKey($key);
+        [$group, $item] = $this->parseKey($key);
         $this->load($group);
-        return array_get($this->items[$group], $item, $default);
+        return Arr::get($this->items[$group], $item, $default);
     }
 
     /**
@@ -74,24 +76,24 @@ class Config implements \ArrayAccess
      * @param string $key
      * @param mixed $value
      */
-    public function set($key, $value)
+    public function set(string $key, $value): void
     {
         list($group, $item) = $this->parseKey($key);
         $this->load($group);
         if ($item === null) {
             $this->items[$group] = $value;
         } else {
-            array_set($this->items[$group], $item, $value);
+            Arr::set($this->items[$group], $item, $value);
         }
     }
 
     /**
      * Determine if the given configuration value exists
      *
-     * @param  string $key
+     * @param string $key
      * @return bool
      */
-    public function has($key)
+    public function has(string $key): bool
     {
         $default = microtime(true);
         return $this->get($key, $default) !== $default;
@@ -100,12 +102,12 @@ class Config implements \ArrayAccess
     /**
      * Determine if a configuration group exists
      *
-     * @param  string $key
+     * @param string $key
      * @return bool
      */
-    public function hasGroup($key)
+    public function hasGroup(string $key): bool
     {
-        list($group, $item) = $this->parseKey($key);
+        [$group, $item] = $this->parseKey($key);
         return $this->exists($group);
     }
 
@@ -114,7 +116,7 @@ class Config implements \ArrayAccess
      *
      * @return array
      */
-    public function getItems()
+    public function getItems(): array
     {
         return $this->items;
     }
@@ -124,7 +126,7 @@ class Config implements \ArrayAccess
      *
      * @return array
      */
-    public function getConfigDirs()
+    public function getConfigDirs(): array
     {
         return $this->configDirs;
     }
@@ -134,7 +136,7 @@ class Config implements \ArrayAccess
      *
      * @return string
      */
-    public function getEnvironment()
+    public function getEnvironment(): string
     {
         return $this->environment;
     }
@@ -142,10 +144,10 @@ class Config implements \ArrayAccess
     /**
      * Parse a key into group and item
      *
-     * @param  string $key
+     * @param string $key
      * @return array
      */
-    protected function parseKey($key)
+    protected function parseKey(string $key): array
     {
         if (isset($this->parsed[$key])) {
             return $this->parsed[$key];
@@ -158,18 +160,18 @@ class Config implements \ArrayAccess
     /**
      * Parse an array of basic segments
      *
-     * @param  array $segments
+     * @param array $segments
      * @return array
      */
-    protected function parseBasicSegments(array $segments)
+    protected function parseBasicSegments(array $segments): array
     {
         $group = $segments[0];
-        if (count($segments) == 1) {
+        if (count($segments) === 1) {
             return [$group, null];
-        } else {
-            $item = implode('.', array_slice($segments, 1));
-            return [$group, $item];
         }
+
+        $item = implode('.', array_slice($segments, 1));
+        return [$group, $item];
     }
 
     /**
@@ -177,7 +179,7 @@ class Config implements \ArrayAccess
      *
      * @param string $group
      */
-    protected function load($group)
+    protected function load(string $group): void
     {
         $env = $this->environment;
         if (isset($this->items[$group])) {
@@ -190,11 +192,11 @@ class Config implements \ArrayAccess
     /**
      * Load the given configuration group
      *
-     * @param  string $environment
-     * @param  string $group
+     * @param string $environment
+     * @param string $group
      * @return array
      */
-    protected function loadItems($environment, $group)
+    protected function loadItems(string $environment, string $group): array
     {
         $items = [];
         foreach ($this->configDirs as $path) {
@@ -215,10 +217,10 @@ class Config implements \ArrayAccess
     /**
      * Determine if the given group exists
      *
-     * @param  string $group
+     * @param string $group
      * @return bool
      */
-    public function exists($group)
+    public function exists(string $group): bool
     {
         $key = $group;
         if (isset($this->exists[$key])) {
@@ -238,11 +240,11 @@ class Config implements \ArrayAccess
     /**
      * Merge the items in the given file into the items
      *
-     * @param  array $items
-     * @param  string $file
+     * @param array $items
+     * @param string $file
      * @return array
      */
-    protected function mergeEnvironment(array $items, $file)
+    protected function mergeEnvironment(array $items, string $file): array
     {
         return array_replace_recursive($items, $this->getRequire($file));
     }
@@ -250,58 +252,59 @@ class Config implements \ArrayAccess
     /**
      * Get the returned value of a file
      *
-     * @param  string $path
+     * @param string $path
      * @return mixed
+     * @throws \Exception
      */
-    protected function getRequire($path)
+    protected function getRequire(string $path)
     {
         if (is_file($path)) {
             return include $path;
         }
-        throw new Exception("File does not exist at path {$path}");
+        throw new \Exception("File does not exist at path {$path}");
     }
 
     /**
      * Determine if the given configuration option exists
      *
-     * @param  string $key
+     * @param string $offset
      * @return bool
      */
-    public function offsetExists($key)
+    public function offsetExists($offset): bool
     {
-        return $this->has($key);
+        return $this->has($offset);
     }
 
     /**
      * Get a configuration option
      *
-     * @param  string $key
+     * @param string $offset
      * @return mixed
      */
-    public function offsetGet($key)
+    public function offsetGet($offset)
     {
-        return $this->get($key);
+        return $this->get($offset);
     }
 
     /**
      * Set a configuration option
      *
-     * @param string $key
+     * @param string $offset
      * @param mixed $value
      */
-    public function offsetSet($key, $value)
+    public function offsetSet($offset, $value)
     {
-        $this->set($key, $value);
+        $this->set($offset, $value);
     }
 
     /**
      * Unset a configuration option
      *
-     * @param string $key
+     * @param string $offset
      */
-    public function offsetUnset($key)
+    public function offsetUnset($offset)
     {
-        $this->set($key, null);
+        $this->set($offset, null);
     }
 
     /**
@@ -309,7 +312,7 @@ class Config implements \ArrayAccess
      *
      * @return array
      */
-    public function files()
+    public function files(): array
     {
         $files = [];
         foreach ($this->configDirs as $path) {
@@ -322,7 +325,7 @@ class Config implements \ArrayAccess
             foreach ($regex as $o) {
                 foreach ($o as $file) {
                     $file = basename($file, '.php');
-                    if (!in_array($file, $files)) {
+                    if (!in_array($file, $files, true)) {
                         $files[] = $file;
                     }
                 }

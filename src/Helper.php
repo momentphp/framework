@@ -2,6 +2,8 @@
 
 namespace momentphp;
 
+use Psr\Container\ContainerInterface;
+
 /**
  * Helper
  */
@@ -21,10 +23,11 @@ abstract class Helper
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
+     * @param Template $template
      * @param array $options
      */
-    public function __construct(\Interop\Container\ContainerInterface $container, Template $template, $options = [])
+    public function __construct(ContainerInterface $container, Template $template, array $options = [])
     {
         $this->container($container);
         $this->template = $template;

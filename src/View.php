@@ -2,6 +2,11 @@
 
 namespace momentphp;
 
+use momentphp\interfaces\ViewEngineInterface;
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+
 /**
  * View
  */
@@ -12,11 +17,10 @@ class View
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
-     * @param array $options
+     * @param ContainerInterface $container
      * @param string $engine
      */
-    public function __construct(\Interop\Container\ContainerInterface $container, $engine)
+    public function __construct(ContainerInterface $container, string $engine)
     {
         $this->container($container);
         $this->engine = $engine;
@@ -32,7 +36,7 @@ class View
     ];
 
     /**
-     * The name of the service implementing \momentphp\interfaces\ViewEngineInterface
+     * The name of the service implementing ViewEngineInterface
      *
      * @var string
      */
@@ -41,7 +45,7 @@ class View
     /**
      * View engine
      *
-     * @var \momentphp\interfaces\ViewEngineInterface
+     * @var ViewEngineInterface
      */
     protected $viewEngine;
 
@@ -76,25 +80,25 @@ class View
     /**
      * Request
      *
-     * @var \Psr\Http\Message\RequestInterface
+     * @var RequestInterface
      */
     protected $request;
 
     /**
      * Response
      *
-     * @var \Psr\Http\Message\ResponseInterface
+     * @var ResponseInterface
      */
     protected $response;
 
     /**
      * Save a variable or an associative array of variables for use inside a template
      *
-     * @param  mixed $name
-     * @param  mixed $value
+     * @param mixed $name
+     * @param mixed $value
      * @return $this
      */
-    public function set($name, $value = null)
+    public function set($name, $value = null): View
     {
         if (is_array($name)) {
             if (is_array($value)) {
@@ -112,16 +116,16 @@ class View
     /**
      * Return view engine instance
      *
-     * @return \momentphp\interfaces\ViewEngineInterface
+     * @return ViewEngineInterface
      */
-    public function viewEngine()
+    public function viewEngine(): ViewEngineInterface
     {
         if ($this->engine === null) {
             throw new \Exception('View engine service name not set');
         }
         $viewEngine = $this->container()->get($this->engine);
-        if (!($viewEngine instanceof \momentphp\interfaces\ViewEngineInterface)) {
-            throw new \Exception('View engine must implement: ' . \momentphp\interfaces\ViewEngineInterface::class);
+        if (!($viewEngine instanceof ViewEngineInterface)) {
+            throw new \Exception('View engine must implement: ' . ViewEngineInterface::class);
         }
         return $viewEngine;
     }
@@ -129,11 +133,12 @@ class View
     /**
      * Render template content
      *
-     * @param  null|string $template
-     * @param  null|string $bundle
+     * @param string|null $template
+     * @param string|null $bundle
      * @return string
+     * @throws \Exception
      */
-    public function render($template = null, $bundle = null)
+    public function render(string $template = null, string $bundle = null): string
     {
         if ($template === null) {
             $template = $this->template;
@@ -158,11 +163,12 @@ class View
     /**
      * Check if given template exists
      *
-     * @param  null|string $template
-     * @param  null|string $bundle
+     * @param string|null $template
+     * @param string|null $bundle
      * @return boolean
+     * @throws \Exception
      */
-    public function exists($template = null, $bundle = null)
+    public function exists(string $template = null, string $bundle = null): bool
     {
         if ($template === null) {
             $template = $this->template;
@@ -176,12 +182,12 @@ class View
     /**
      * Return template path
      *
-     * @param  string $template
+     * @param string $template
      * @return string
      */
-    protected function path($template)
+    protected function path(string $template): string
     {
-        if (substr($template, 0, 1) === '/') {
+        if ($template[0] === '/') {
             return ltrim($template, '/');
         }
         if ($this->templateFolder) {
@@ -193,10 +199,11 @@ class View
     /**
      * Return template path based on detected media type
      *
-     * @param  string $template
+     * @param string $template
      * @return string
+     * @throws \Exception
      */
-    protected function mediaTypeTemplate($template)
+    protected function mediaTypeTemplate(string $template): string
     {
         if ($this->request && $this->request->getAttribute('mediaType')) {
             $mediaTemplate = path([$this->request->getAttribute('mediaType')->getSubPart(), $template], '/');
@@ -208,23 +215,27 @@ class View
     /**
      * Universal getter/setter
      *
-     * @param  string $method
-     * @param  array $args
+     * @param string $method
+     * @param array $args
      * @return mixed
+     * @throws \Exception
      */
-    public function __call($method, $args = [])
+    public function __call(string $method, array $args = [])
     {
         array_unshift($args, $method);
         $self = $this;
-        return call_user_func_array(function ($property, $value = null) use ($self) {
-            if (in_array($property, $self->guarded)) {
-                throw new \Exception('Unable to change property: ' . $property);
-            }
-            if ($value !== null) {
-                $self->{$property} = $value;
-                return $self;
-            }
-            return $self->{$property};
-        }, $args);
+        return call_user_func_array(
+            function ($property, $value = null) use ($self) {
+                if (in_array($property, $self->guarded, true)) {
+                    throw new \Exception('Unable to change property: ' . $property);
+                }
+                if ($value !== null) {
+                    $self->{$property} = $value;
+                    return $self;
+                }
+                return $self->{$property};
+            },
+            $args
+        );
     }
 }
