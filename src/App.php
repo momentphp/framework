@@ -2,7 +2,6 @@
 
 namespace momentphp;
 
-use Illuminate\Container\Container;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Psr\Http\Message\ResponseInterface;
@@ -102,7 +101,9 @@ class App
          * Env
          */
         if (!isset($container['env'])) {
-            $container['env'] = 'production';
+            $container['env'] = static function ($c) {
+                return 'production';
+            };
         }
 
         /**
@@ -202,7 +203,7 @@ class App
          */
         if (!isset($container['objectCache'])) {
             $container['objectCache'] = static function () {
-                return new ObjectCache;
+                return new ObjectCache();
             };
         }
 
@@ -227,11 +228,13 @@ class App
         /**
          * Exception handler
          */
+        /*
         if (!isset($container['exceptionHandler'])) {
             $container['exceptionHandler'] = static function ($c) {
                 return new ExceptionHandler($c);
             };
         }
+        */
 
         /**
          * Callable resolver (Slim)
@@ -242,13 +245,14 @@ class App
             };
         }
 
+        $responseFactory = new ResponseFactory();
+
         /**
          * Router (Slim)
          */
         if (!isset($container['router'])) {
-            $container['router'] = static function () use ($container) {
+            $container['router'] = static function () use ($container, $responseFactory) {
                 $callableResolver = $container['callableResolver'];
-                $responseFactory = new ResponseFactory();
                 $routeCollector = new RouteCollector($responseFactory, $callableResolver);
                 return new RouteResolver($routeCollector);
             };
@@ -257,12 +261,7 @@ class App
         /**
          * Init Slim app
          */
-        if (is_array($container)) {
-            $container = new Container($container);
-        }
-
-        $responseFactory = new ResponseFactory();
-        $this->slim = new \Slim\App($responseFactory, $container);
+        $this->slim = new \Slim\App($responseFactory, (new PsrContainer($container)));
         $this->container($this->slim->getContainer());
 
         /**
@@ -468,7 +467,7 @@ class App
     public function service(string $name, callable $callable): void
     {
         $container = $this->container();
-        $container[$name] = $callable;
+        $container->set($name, $callable);
     }
 
     /**

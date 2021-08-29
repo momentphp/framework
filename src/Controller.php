@@ -5,12 +5,14 @@ namespace momentphp;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 use Slim\Exception\HttpNotFoundException;
 
 /**
  * Controller
  */
-abstract class Controller
+abstract class Controller implements RequestHandlerInterface
 {
     use traits\ContainerTrait;
     use traits\OptionsTrait;
@@ -50,8 +52,9 @@ abstract class Controller
         if ($this->container()->has('view')) {
             $this->view = clone $this->container()->get('view');
         }
+
         $this->container()->get('app')->bindImplementedEvents($this);
-        $this->container()->get('app')->eventsDispatcher()->fire("controller.{static::classPrefix()}.initialize", [$this]);
+        $this->container()->get('app')->eventsDispatcher()->dispatch("controller.{static::classPrefix()}.initialize", [$this]);
     }
 
     /**
@@ -66,6 +69,10 @@ abstract class Controller
             "controller.{static::classPrefix()}.beforeAction" => 'beforeAction',
             "controller.{static::classPrefix()}.afterAction" => 'afterAction',
         ];
+    }
+
+    public function handle(ServerRequestInterface $request): ResponseInterface
+    {
     }
 
     /**
@@ -177,9 +184,9 @@ abstract class Controller
         $this->request = $request;
         $this->response = $response;
 
-        $this->container()->get('app')->eventsDispatcher()->fire("controller.{static::classPrefix()}.beforeAction", [$this, $action]);
+        $this->container()->get('app')->eventsDispatcher()->dispatch("controller.{static::classPrefix()}.beforeAction", [$this, $action]);
         $actionResponse = call_user_func_array([$this, $action], $params);
-        $this->container()->get('app')->eventsDispatcher()->fire("controller.{static::classPrefix()}.afterAction", [$this, $action]);
+        $this->container()->get('app')->eventsDispatcher()->dispatch("controller.{static::classPrefix()}.afterAction", [$this, $action]);
 
         if ($actionResponse === null) {
             if ($this->view === null) {

@@ -14,7 +14,7 @@ trait ClassTrait
      * @return string
      * @throws \ReflectionException
      */
-    public static function classNamespace(string $append = null): string
+    public static function classNamespace(?string $append = null): string
     {
         return class_namespace(static::class, $append);
     }

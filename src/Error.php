@@ -3,6 +3,7 @@
 namespace momentphp;
 
 use Psr\Container\ContainerInterface;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -39,10 +40,6 @@ class Error
         }
 
         if ($container->has('exceptionHandler')) {
-            unset($container['notFoundHandler']);
-            unset($container['notAllowedHandler']);
-            unset($container['errorHandler']);
-            unset($container['phpErrorHandler']);
             set_error_handler([$this, 'handleError']);
             set_exception_handler([$this, 'handleException']);
             register_shutdown_function([$this, 'handleShutdown']);

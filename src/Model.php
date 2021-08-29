@@ -32,7 +32,7 @@ abstract class Model
         $this->container($container);
         $this->options($options);
         $this->container()->get('app')->bindImplementedEvents($this);
-        $this->container()->get('app')->eventsDispatcher()->fire("model.{static::classPrefix()}.initialize", [$this]);
+        $this->container()->get('app')->eventsDispatcher()->dispatch("model.{static::classPrefix()}.initialize", [$this]);
     }
 
     /**

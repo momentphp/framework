@@ -3,6 +3,7 @@
 namespace momentphp;
 
 use Psr\Container\ContainerInterface;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LogLevel;
 use Slim\Exception\HttpException;
@@ -22,14 +23,20 @@ class ExceptionHandler
 {
     use traits\ContainerTrait;
 
+    protected RequestInterface $request;
+    protected ResponseInterface $response;
+
     /**
      * Constructor
      *
      * @param ContainerInterface $container
      */
-    public function __construct(ContainerInterface $container)
+    public function __construct(ContainerInterface $container, RequestInterface $request, ResponseInterface $response)
     {
         $this->container($container);
+
+        $this->request = $request;
+        $this->response = $response;
     }
 
     /**
@@ -41,7 +48,7 @@ class ExceptionHandler
     public function renderForConsole(\Throwable $e): string
     {
         $whoops = $this->whoops();
-        $whoops->pushHandler(new PlainTextHandler);
+        $whoops->pushHandler(new PlainTextHandler());
         return $whoops->handleException($e);
     }
 
@@ -56,7 +63,7 @@ class ExceptionHandler
         if ($this->container()->has('debug') && $this->container()->get('debug')) {
             $whoops = $this->whoops();
             $whoops->pushHandler($this->whoopsHandler($e));
-            return $this->container->get('response')->write($whoops->handleException($e))->withStatus(500);
+            return $this->response->write($whoops->handleException($e))->withStatus(500);
         }
 
         $errorController = $this->container()->get('registry')->load('ErrorController');
@@ -77,7 +84,7 @@ class ExceptionHandler
         if ($e instanceof HttpException) {
             $request = $e->getRequest();
         } else {
-            $request = $this->container()->get('request');
+            $request = $this->request;
         }
 
         return $errorController->error($request, [$e])->withStatus(500);
@@ -91,12 +98,12 @@ class ExceptionHandler
      */
     protected function whoopsHandler(\Throwable $e)
     {
-        $handler = new PrettyPageHandler;
+        $handler = new PrettyPageHandler();
         $handler->setPageTitle('Error');
 
         $request = ($e instanceof HttpException) ?
             $e->getRequest() :
-            $this->container()->get('request');
+            $this->request;
 
         if (!$request->getAttribute('mediaType')) { // NegotiationMiddleware not present
             return $handler;
@@ -104,10 +111,10 @@ class ExceptionHandler
 
         switch ($request->getAttribute('mediaType')->getSubPart()) {
             case 'json':
-                $handler = new JsonResponseHandler;
+                $handler = new JsonResponseHandler();
                 break;
             case 'xml':
-                $handler = new XmlResponseHandler;
+                $handler = new XmlResponseHandler();
                 break;
         }
         return $handler;
@@ -120,7 +127,7 @@ class ExceptionHandler
      */
     protected function whoops(): Run
     {
-        $whoops = new Run;
+        $whoops = new Run();
         $whoops->allowQuit(false);
         $whoops->writeToOutput(false);
         return $whoops;
