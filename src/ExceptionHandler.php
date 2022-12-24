@@ -2,6 +2,20 @@
 
 namespace momentphp;
 
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LogLevel;
+use Slim\Exception\HttpException;
+use Slim\Exception\HttpMethodNotAllowedException;
+use Slim\Exception\HttpNotFoundException;
+use Whoops\Handler\HandlerInterface;
+use Whoops\Handler\JsonResponseHandler;
+use Whoops\Handler\PlainTextHandler;
+use Whoops\Handler\PrettyPageHandler;
+use Whoops\Handler\XmlResponseHandler;
+use Whoops\Run;
+
 /**
  * ExceptionHandler
  */
@@ -9,85 +23,87 @@ class ExceptionHandler
 {
     use traits\ContainerTrait;
 
+    protected RequestInterface $request;
+    protected ResponseInterface $response;
+
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
      */
-    public function __construct(\Interop\Container\ContainerInterface $container)
+    public function __construct(ContainerInterface $container, RequestInterface $request, ResponseInterface $response)
     {
         $this->container($container);
+
+        $this->request = $request;
+        $this->response = $response;
     }
 
     /**
      * Render exception for CLI
      *
-     * @param  \Throwable $e
+     * @param \Throwable $e
      * @return string
      */
-    public function renderForConsole($e)
+    public function renderForConsole(\Throwable $e): string
     {
         $whoops = $this->whoops();
-        $whoops->pushHandler(new \Whoops\Handler\PlainTextHandler);
+        $whoops->pushHandler(new PlainTextHandler());
         return $whoops->handleException($e);
     }
 
     /**
      * Render http response for given exception
      *
-     * @param  \Throwable $e
-     * @return \Psr\Http\Message\ResponseInterface
+     * @param \Throwable $e
+     * @return ResponseInterface
      */
-    public function renderHttpResponse($e)
+    public function renderHttpResponse(\Throwable $e): ResponseInterface
     {
-        if ($this->container()->has('debug')) {
-            if ($this->container()->get('debug')) {
-                $whoops = $this->whoops();
-                $whoops->pushHandler($this->whoopsHandler($e));
-                return $this->container->get('response')->write($whoops->handleException($e))->withStatus(500);
-            }
+        if ($this->container()->has('debug') && $this->container()->get('debug')) {
+            $whoops = $this->whoops();
+            $whoops->pushHandler($this->whoopsHandler($e));
+            return $this->response->write($whoops->handleException($e))->withStatus(500);
         }
 
         $errorController = $this->container()->get('registry')->load('ErrorController');
 
-        if ($e instanceof \Slim\Exception\NotFoundException) {
+        if ($e instanceof HttpNotFoundException) {
             return $errorController
-            ->notFound($e->getRequest(), $e->getResponse())
-            ->withStatus(404);
+                ->notFound($e->getRequest())
+                ->withStatus(404);
         }
 
-        if ($e instanceof \Slim\Exception\MethodNotAllowedException) {
+        if ($e instanceof HttpMethodNotAllowedException) {
             return $errorController
-            ->notAllowed($e->getRequest(), $e->getResponse(), $e->getAllowedMethods())
-            ->withStatus(405)
-            ->withHeader('Allow', implode(', ', $e->getAllowedMethods()));
+                ->notAllowed($e->getRequest(), $e->getAllowedMethods())
+                ->withStatus(405)
+                ->withHeader('Allow', implode(', ', $e->getAllowedMethods()));
         }
 
-        if ($e instanceof \Slim\Exception\SlimException) {
+        if ($e instanceof HttpException) {
             $request = $e->getRequest();
-            $response = $e->getResponse();
         } else {
-            $request = $this->container()->get('request');
-            $response = $this->container()->get('response');
+            $request = $this->request;
         }
 
-        return $errorController->error($request, $response, [$e])->withStatus(500);
+        return $errorController->error($request, [$e])->withStatus(500);
     }
 
     /**
      * Return correct Whoops handler
      *
-     * @param  \Throwable $e
-     * @return \Whoops\Handler\HandlerInterface
+     * @param \Throwable $e
+     * @return HandlerInterface
      */
-    protected function whoopsHandler($e)
+    protected function whoopsHandler(\Throwable $e)
     {
-        $handler = new \Whoops\Handler\PrettyPageHandler;
+        $handler = new PrettyPageHandler();
         $handler->setPageTitle('Error');
 
-        $request = ($e instanceof \Slim\Exception\SlimException) ?
+        $request = ($e instanceof HttpException) ?
             $e->getRequest() :
-            $this->container()->get('request');
+            $this->request;
 
         if (!$request->getAttribute('mediaType')) { // NegotiationMiddleware not present
             return $handler;
@@ -95,10 +111,10 @@ class ExceptionHandler
 
         switch ($request->getAttribute('mediaType')->getSubPart()) {
             case 'json':
-                $handler = new \Whoops\Handler\JsonResponseHandler;
+                $handler = new JsonResponseHandler();
                 break;
             case 'xml':
-                $handler = new \Whoops\Handler\XmlResponseHandler;
+                $handler = new XmlResponseHandler();
                 break;
         }
         return $handler;
@@ -107,11 +123,11 @@ class ExceptionHandler
     /**
      * Return prepared Whoops instance
      *
-     * @return \Whoops\Run
+     * @return Run
      */
-    protected function whoops()
+    protected function whoops(): Run
     {
-        $whoops = new \Whoops\Run;
+        $whoops = new Run();
         $whoops->allowQuit(false);
         $whoops->writeToOutput(false);
         return $whoops;
@@ -122,7 +138,7 @@ class ExceptionHandler
      *
      * @param \Throwable $e
      */
-    public function report($e)
+    public function report(\Throwable $e): void
     {
         if (!$this->container->has('log')) {
             return;
@@ -134,23 +150,21 @@ class ExceptionHandler
             $options = $this->container->get('config')->get('app.error', []);
         }
 
-        if (isset($options['skip']) && is_array($options['skip'])) {
-            if (in_array(get_class($e), $options['skip'])) {
-                return;
-            }
+        if (isset($options['skip']) && is_array($options['skip']) && in_array(get_class($e), $options['skip'], true)) {
+            return;
         }
 
         $log = $this->container->get('log');
 
         if (isset($options['logger']) && $options['logger'] === false) {
             return;
-        } else {
-            $log = $log->logger($options['logger']);
         }
+
+        $log = $log->logger($options['logger']);
 
         $code = (method_exists($e, 'getSeverity')) ? $e->getSeverity() : E_ERROR;
         $map = $this->defaultErrorLevelMap();
-        $level = isset($map[$code]) ? $map[$code] : \Psr\Log\LogLevel::CRITICAL;
+        $level = $map[$code] ?? LogLevel::CRITICAL;
 
         $message = $e->getMessage();
         if (empty($message)) {
@@ -171,34 +185,34 @@ class ExceptionHandler
      *
      * @return array
      */
-    public function defaultErrorLevelMap()
+    public function defaultErrorLevelMap(): array
     {
         return [
-            E_ERROR             => \Psr\Log\LogLevel::CRITICAL,
-            E_WARNING           => \Psr\Log\LogLevel::WARNING,
-            E_PARSE             => \Psr\Log\LogLevel::ALERT,
-            E_NOTICE            => \Psr\Log\LogLevel::NOTICE,
-            E_CORE_ERROR        => \Psr\Log\LogLevel::CRITICAL,
-            E_CORE_WARNING      => \Psr\Log\LogLevel::WARNING,
-            E_COMPILE_ERROR     => \Psr\Log\LogLevel::ALERT,
-            E_COMPILE_WARNING   => \Psr\Log\LogLevel::WARNING,
-            E_USER_ERROR        => \Psr\Log\LogLevel::ERROR,
-            E_USER_WARNING      => \Psr\Log\LogLevel::WARNING,
-            E_USER_NOTICE       => \Psr\Log\LogLevel::NOTICE,
-            E_STRICT            => \Psr\Log\LogLevel::NOTICE,
-            E_RECOVERABLE_ERROR => \Psr\Log\LogLevel::ERROR,
-            E_DEPRECATED        => \Psr\Log\LogLevel::NOTICE,
-            E_USER_DEPRECATED   => \Psr\Log\LogLevel::NOTICE,
+            E_ERROR => LogLevel::CRITICAL,
+            E_WARNING => LogLevel::WARNING,
+            E_PARSE => LogLevel::ALERT,
+            E_NOTICE => LogLevel::NOTICE,
+            E_CORE_ERROR => LogLevel::CRITICAL,
+            E_CORE_WARNING => LogLevel::WARNING,
+            E_COMPILE_ERROR => LogLevel::ALERT,
+            E_COMPILE_WARNING => LogLevel::WARNING,
+            E_USER_ERROR => LogLevel::ERROR,
+            E_USER_WARNING => LogLevel::WARNING,
+            E_USER_NOTICE => LogLevel::NOTICE,
+            E_STRICT => LogLevel::NOTICE,
+            E_RECOVERABLE_ERROR => LogLevel::ERROR,
+            E_DEPRECATED => LogLevel::NOTICE,
+            E_USER_DEPRECATED => LogLevel::NOTICE,
         ];
     }
 
     /**
      * Return error code as string
      *
-     * @param  const $code
+     * @param  $code
      * @return string
      */
-    public function codeToString($code)
+    public function codeToString($code): string
     {
         switch ($code) {
             case E_ERROR:

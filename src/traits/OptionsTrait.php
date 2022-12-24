@@ -2,6 +2,8 @@
 
 namespace momentphp\traits;
 
+use Illuminate\Support\Arr;
+
 /**
  * OptionsTrait
  */
@@ -24,8 +26,8 @@ trait OptionsTrait
     /**
      * Options getter/setter
      *
-     * @param  null|string|array $key
-     * @param  null|mixed $value
+     * @param null|string|array $key
+     * @param null|mixed $value
      * @return mixed
      */
     public function options($key = null, $value = null)
@@ -40,18 +42,18 @@ trait OptionsTrait
         // options set
         if (is_array($key)) {
             foreach ($key as $innerKey => $innerValue) {
-                \Illuminate\Support\Arr::set($this->options, $innerKey, $innerValue);
+                Arr::set($this->options, $innerKey, $innerValue);
             }
             return $this;
         }
 
         // options set
         if (func_num_args() === 2) {
-            \Illuminate\Support\Arr::set($this->options, $key, $value);
+            Arr::set($this->options, $key, $value);
             return $this;
         }
 
         // options get
-        return \Illuminate\Support\Arr::get($this->options, $key);
+        return Arr::get($this->options, $key);
     }
 }

@@ -27,7 +27,7 @@ class ObjectCache
      * @param object $store
      * @param array $options
      */
-    public function __invoke($object, $store, $options)
+    public function __invoke(object $object, object $store, array $options)
     {
         $this->ocOptions = array_replace_recursive($this->ocOptions, $options);
         $this->ocOptions['object'] = $object;
@@ -37,18 +37,19 @@ class ObjectCache
     /**
      * Call and cache a class method
      *
-     * @param  string $method
-     * @param  array $args
+     * @param string $method
+     * @param array $args
      * @return mixed
+     * @throws \Exception
      */
-    public function ocCall($method, $args = [])
+    public function ocCall(string $method, array $args = [])
     {
         $callback = [$this->ocOptions['object'], $method];
         $cache = $this->ocOptions['enabled'];
         if ($cache) {
-            $cache = !in_array($method, $this->ocOptions['nonCacheMethods']);
+            $cache = !in_array($method, $this->ocOptions['nonCacheMethods'], true);
         } else {
-            $cache = in_array($method, $this->ocOptions['cacheMethods']);
+            $cache = in_array($method, $this->ocOptions['cacheMethods'], true);
         }
         if (!$cache) {
             if ($args) {
@@ -58,18 +59,20 @@ class ObjectCache
         }
 
         $key = $this->ocCacheKey($callback, $args);
-        $ttl = (isset($this->ocOptions['ttlMap'][$method])) ?
-            $this->ocOptions['ttlMap'][$method] :
-            $this->ocOptions['ttl'];
+        $ttl = $this->ocOptions['ttlMap'][$method] ?? $this->ocOptions['ttl'];
 
-        $value = $this->ocOptions['store']->remember($key, $ttl, function () use ($callback, $args) {
-            if ($args) {
-                $ret = call_user_func_array($callback, $args);
-            } else {
-                $ret = call_user_func($callback);
+        $value = $this->ocOptions['store']->remember(
+            $key,
+            $ttl,
+            function () use ($callback, $args) {
+                if ($args) {
+                    $ret = call_user_func_array($callback, $args);
+                } else {
+                    $ret = $callback();
+                }
+                return $ret;
             }
-            return $ret;
-        });
+        );
 
         return $value;
     }
@@ -77,11 +80,11 @@ class ObjectCache
     /**
      * Return cache key
      *
-     * @param  callback $callback
-     * @param  array $args
+     * @param callback $callback
+     * @param array $args
      * @return string
      */
-    protected function ocCacheKey($callback, $args = [])
+    protected function ocCacheKey(callable $callback, array $args = []): string
     {
         if (!method_exists($this->ocOptions['object'], 'objectKey')) {
             throw new \Exception('Object inside ObjectCache must implement objectKey() method');
@@ -94,10 +97,10 @@ class ObjectCache
     /**
      * Return arguments key
      *
-     * @param  mixed $args
+     * @param mixed $args
      * @return string
      */
-    protected function ocArgumentsKey($args)
+    protected function ocArgumentsKey($args): string
     {
         if (!$args) {
             return '';
@@ -109,11 +112,12 @@ class ObjectCache
     /**
      * Proxy calls to underlying object
      *
-     * @param  string $method
-     * @param  array $args
+     * @param string $method
+     * @param array $args
      * @return mixed
+     * @throws \Exception
      */
-    public function __call($method, $args)
+    public function __call(string $method, array $args)
     {
         return $this->ocCall($method, $args);
     }

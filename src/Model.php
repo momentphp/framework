@@ -2,6 +2,9 @@
 
 namespace momentphp;
 
+use Illuminate\Database\ConnectionInterface;
+use Psr\Container\ContainerInterface;
+
 /**
  * Model
  */
@@ -21,24 +24,24 @@ abstract class Model
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
      * @param array $options
      */
-    public function __construct(\Interop\Container\ContainerInterface $container, $options = [])
+    public function __construct(ContainerInterface $container, array $options = [])
     {
         $this->container($container);
         $this->options($options);
         $this->container()->get('app')->bindImplementedEvents($this);
-        $this->container()->get('app')->eventsDispatcher()->fire("model.{static::classPrefix()}.initialize", [$this]);
+        $this->container()->get('app')->eventsDispatcher()->dispatch("model.{static::classPrefix()}.initialize", [$this]);
     }
 
     /**
      * Return connection
      *
-     * @param  null|string $connectionName
-     * @return \Illuminate\Database\ConnectionInterface
+     * @param string|null $connectionName
+     * @return ConnectionInterface
      */
-    public function db($connectionName = null)
+    public function db(string $connectionName = null): ConnectionInterface
     {
         if ($connectionName === null) {
             $connectionName = $this->connection;
@@ -56,7 +59,7 @@ abstract class Model
      *
      * @return array
      */
-    public function implementedEvents()
+    public function implementedEvents(): array
     {
         return [
             "model.{static::classPrefix()}.initialize" => 'initialize'
@@ -66,7 +69,7 @@ abstract class Model
     /**
      * Model callback invoked just after model construction
      */
-    public function initialize()
+    public function initialize(): void
     {
     }
 
@@ -75,7 +78,7 @@ abstract class Model
      *
      * @return string
      */
-    public function objectKey()
+    public function objectKey(): string
     {
         return get_class($this) . serialize($this->options());
     }
@@ -83,10 +86,10 @@ abstract class Model
     /**
      * Return model
      *
-     * @param  string $name
-     * @return \momentphp\Model|\momentphp\Registry
+     * @param string $name
+     * @return Model|Registry
      */
-    public function __get($name)
+    public function __get(string $name)
     {
         return $this->container()->has('registry') ? $this->container()->get('registry')->models->{$name} : $this->{$name};
     }

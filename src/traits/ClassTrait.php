@@ -10,10 +10,11 @@ trait ClassTrait
     /**
      * Proxy call to `class_namespace()`
      *
-     * @param  string $append
+     * @param string|null $append
      * @return string
+     * @throws \ReflectionException
      */
-    public static function classNamespace($append = null)
+    public static function classNamespace(?string $append = null): string
     {
         return class_namespace(static::class, $append);
     }
@@ -21,10 +22,11 @@ trait ClassTrait
     /**
      * Proxy call to `class_path()`
      *
-     * @param  string $append
+     * @param string|null $append
      * @return string
+     * @throws \ReflectionException
      */
-    public static function classPath($append = null)
+    public static function classPath(string $append = null): string
     {
         return class_path(static::class, $append);
     }
@@ -32,10 +34,10 @@ trait ClassTrait
     /**
      * Proxy call to `class_prefix()`
      *
-     * @param  bool $pluralize
+     * @param bool $pluralize
      * @return string
      */
-    public static function classPrefix($pluralize = false)
+    public static function classPrefix(bool $pluralize = false): string
     {
         return class_prefix(static::class, $pluralize);
     }
@@ -43,10 +45,10 @@ trait ClassTrait
     /**
      * Proxy call to `class_suffix()`
      *
-     * @param  bool $pluralize
+     * @param bool $pluralize
      * @return string
      */
-    public static function classSuffix($pluralize = false)
+    public static function classSuffix(bool $pluralize = false): string
     {
         return class_suffix(static::class, $pluralize);
     }
@@ -54,11 +56,11 @@ trait ClassTrait
     /**
      * Proxy call to `class_part()`
      *
-     * @param  string $type
-     * @param  bool $pluralize
+     * @param string $type
+     * @param bool $pluralize
      * @return string
      */
-    public static function classPart($type, $pluralize = false)
+    public static function classPart(string $type, bool $pluralize = false): string
     {
         return class_part(static::class, $type, $pluralize);
     }
@@ -67,8 +69,9 @@ trait ClassTrait
      * Proxy call to `class_config_key()`
      *
      * @return string
+     * @throws \ReflectionException
      */
-    public static function classConfigKey()
+    public static function classConfigKey(): string
     {
         return class_config_key(static::class);
     }
@@ -78,7 +81,7 @@ trait ClassTrait
      *
      * @return string
      */
-    public static function classBasename()
+    public static function classBasename(): string
     {
         return class_basename(static::class);
     }

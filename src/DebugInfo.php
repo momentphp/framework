@@ -2,6 +2,8 @@
 
 namespace momentphp;
 
+use Psr\Container\ContainerInterface;
+
 /**
  * DebugInfo
  */
@@ -12,9 +14,9 @@ class DebugInfo
     /**
      * Constructor
      *
-     * @param \Interop\Container\ContainerInterface $container
+     * @param ContainerInterface $container
      */
-    public function __construct(\Interop\Container\ContainerInterface $container)
+    public function __construct(ContainerInterface $container)
     {
         $this->container($container);
     }
@@ -22,10 +24,10 @@ class DebugInfo
     /**
      * Return app debug info
      *
-     * @param  null|string $key
+     * @param string|null $key
      * @return array
      */
-    public function get($key = null)
+    public function get(?string $key = null): array
     {
         $info = [];
 
@@ -41,7 +43,7 @@ class DebugInfo
             $info['env'] = [
                 'title' => '$app&rarr;env',
                 'description' => 'Environment',
-                'value' =>  $this->container()->get('env'),
+                'value' => $this->container()->get('env'),
             ];
         }
 
@@ -129,7 +131,7 @@ class DebugInfo
      *
      * @return array
      */
-    protected function getConfig()
+    protected function getConfig(): array
     {
         $c = $this->container()->get('config');
         foreach ($c->files() as $file) {

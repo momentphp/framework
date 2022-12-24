@@ -10,7 +10,7 @@ class Settings implements \ArrayAccess
     /**
      * Config
      *
-     * @var \momentphp\Config
+     * @var Config
      */
     protected $config;
 
@@ -25,8 +25,9 @@ class Settings implements \ArrayAccess
      * Constructor
      *
      * @param Config $config
+     * @param string $prefix
      */
-    public function __construct(Config $config, $prefix)
+    public function __construct(Config $config, string $prefix)
     {
         $this->config = $config;
         $this->prefix = $prefix;
@@ -35,10 +36,10 @@ class Settings implements \ArrayAccess
     /**
      * Return prefixed key
      *
-     * @param  string $key
+     * @param string $key
      * @return string
      */
-    protected function key($key)
+    protected function key(string $key): string
     {
         return $this->prefix . '.' . $key;
     }
@@ -46,43 +47,43 @@ class Settings implements \ArrayAccess
     /**
      * Determine if the given configuration option exists
      *
-     * @param  string $key
+     * @param string $offset
      * @return bool
      */
-    public function offsetExists($key)
+    public function offsetExists($offset)
     {
-        return $this->config->has($this->key($key));
+        return $this->config->has($this->key($offset));
     }
 
     /**
      * Get a configuration option
      *
-     * @param  string $key
+     * @param string $offset
      * @return mixed
      */
-    public function offsetGet($key)
+    public function offsetGet($offset)
     {
-        return $this->config->get($this->key($key));
+        return $this->config->get($this->key($offset));
     }
 
     /**
      * Set a configuration option
      *
-     * @param string $key
+     * @param string $offset
      * @param mixed $value
      */
-    public function offsetSet($key, $value)
+    public function offsetSet($offset, $value)
     {
-        $this->config->set($this->key($key), $value);
+        $this->config->set($this->key($offset), $value);
     }
 
     /**
      * Unset a configuration option
      *
-     * @param string $key
+     * @param string $offset
      */
-    public function offsetUnset($key)
+    public function offsetUnset($offset)
     {
-        $this->config->set($this->key($key), null);
+        $this->config->set($this->key($offset), null);
     }
 }
